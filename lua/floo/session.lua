@@ -36,9 +36,11 @@ local function close_unpinned_tabs()
     local closed_one = false
     for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
       if not switcher.is_pinned(tabid) then
-        pcall(vim.cmd, vim.api.nvim_tabpage_get_number(tabid) .. "tabclose")
-        closed_one = true
-        break
+        local ok = pcall(vim.cmd, vim.api.nvim_tabpage_get_number(tabid) .. "tabclose")
+        if ok then
+          closed_one = true
+          break
+        end
       end
     end
     if not closed_one then
