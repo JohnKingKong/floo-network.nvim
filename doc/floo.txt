@@ -1,0 +1,39 @@
+*floo.txt*  Workspace tabs for Neovim, with a Floo Network twist
+
+==============================================================================
+CONTENTS                                                       *floo-contents*
+
+    1. Introduction .......................... |floo-introduction|
+    2. Setup .................................. |floo-setup|
+    3. Config .................................. |floo-config|
+    4. Public API ............................... |floo-api|
+
+==============================================================================
+1. Introduction                                            *floo-introduction*
+
+floo-network.nvim turns each Neovim tab into an independent workspace scoped to its
+own directory. See the README for the full Floo Network naming rationale
+and a keymap table.
+
+==============================================================================
+2. Setup                                                          *floo-setup*
+
+>lua
+    require("floo").setup({})
+<
+
+==============================================================================
+3. Config                                                        *floo-config*
+
+See `:help floo-setup` above and README.md for the complete config schema
+(`keys`, `dropdown`, `session`, `neo_tree`) with every field documented.
+
+==============================================================================
+4. Public API                                                       *floo-api*
+
+require("floo").buf_belongs_to_current_workspace({bufnr})
+    Returns whether {bufnr} belongs to the currently active workspace tab.
+    Intended for wiring into bufferline.nvim's `custom_filter` — see
+    README.md.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
