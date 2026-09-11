@@ -142,7 +142,10 @@ function M.close_others()
   local current_tab = vim.api.nvim_get_current_tabpage()
   for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
     if tabid ~= current_tab and not M.is_pinned(tabid) and vim.api.nvim_tabpage_is_valid(tabid) then
-      vim.cmd(vim.api.nvim_tabpage_get_number(tabid) .. "tabclose")
+      local ok, err = pcall(vim.cmd, vim.api.nvim_tabpage_get_number(tabid) .. "tabclose")
+      if not ok then
+        vim.notify(err, vim.log.levels.WARN)
+      end
     end
   end
 end

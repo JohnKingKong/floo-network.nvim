@@ -71,7 +71,9 @@ specific binding without affecting the others.
 - **neo-tree.nvim**: if installed, creating a workspace auto-opens
   neo-tree scoped to its directory, `keys.explorer` opens the tree
   re-rooted to the current workspace, and session restore reopens each
-  pinned workspace's tree. Not required — everything else works without it.
+  restored workspace's tree. Not required — everything else works without
+  it. Set `neo_tree.enabled = false` to opt out of all of the above even
+  if neo-tree.nvim is installed.
 - **bufferline.nvim**: not wired automatically (floo-network.nvim doesn't own your
   bufferline config). To scope the buffer bar to the current workspace,
   add this to your own bufferline spec:

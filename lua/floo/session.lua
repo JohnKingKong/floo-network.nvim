@@ -14,7 +14,8 @@
 --
 -- Neo-tree windows are never captured by :mksession (its buffers are
 -- unlisted/nofile), so they're reopened explicitly on restore, per tab,
--- scoped to that tab's restored cwd — only if neo-tree.nvim is installed.
+-- scoped to that tab's restored cwd — only if neo-tree.nvim is installed
+-- and config.neo_tree.enabled is true.
 local M = {}
 
 local switcher = require("floo.switcher")
@@ -23,9 +24,11 @@ local SESSION_FILE = vim.fn.stdpath("state") .. "/floo_session.vim"
 local META_FILE = vim.fn.stdpath("state") .. "/floo_session.json"
 
 local config = { enabled = true, persist = "pinned" }
+local neo_tree_config = { enabled = true }
 
-function M.setup(opts)
+function M.setup(opts, neo_tree_opts)
   config = opts
+  neo_tree_config = neo_tree_opts or neo_tree_config
 end
 
 -- Closes every unpinned tab, called only right before quitting (VimLeavePre)
@@ -98,7 +101,7 @@ function M.restore()
   end
 
   local active_tab = vim.api.nvim_get_current_tabpage()
-  local has_neo_tree = pcall(require, "neo-tree.command")
+  local has_neo_tree = neo_tree_config.enabled and pcall(require, "neo-tree.command")
 
   for i, tabid in ipairs(vim.api.nvim_list_tabpages()) do
     local entry = meta[i]

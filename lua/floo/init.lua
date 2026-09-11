@@ -11,10 +11,16 @@ local function has_neo_tree()
   return pcall(require, "neo-tree.command")
 end
 
+-- Read by new_workspace(), which runs long after setup() returns (it's a
+-- keymap callback), so the merged neo_tree config is kept at module scope
+-- rather than only living inside setup()'s local `config`.
+local neo_tree_config = { enabled = true }
+
 function M.setup(opts)
   local config = config_mod.merge(opts)
+  neo_tree_config = config.neo_tree
   switcher.setup(config)
-  session.setup(config.session)
+  session.setup(config.session, config.neo_tree)
 
   local keys = config.keys or {}
 
@@ -84,7 +90,7 @@ function M.new_workspace()
     vim.cmd("tabnew")
     vim.cmd("tcd " .. vim.fn.fnameescape(dir))
     switcher.set_name(vim.api.nvim_get_current_tabpage(), vim.fn.fnamemodify(dir, ":h:t"))
-    if has_neo_tree() then
+    if neo_tree_config.enabled and has_neo_tree() then
       require("neo-tree.command").execute({ toggle = false, dir = dir })
     end
   end)
