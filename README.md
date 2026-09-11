@@ -25,7 +25,7 @@ That's exactly the model here:
 
 ```lua
 {
-  "your-github-username/floo-network.nvim",
+  "JohnKingKong/floo-network.nvim",
   event = "VeryLazy",
   opts = {},
 }
@@ -35,7 +35,7 @@ Or with explicit config:
 
 ```lua
 {
-  "your-github-username/floo-network.nvim",
+  "JohnKingKong/floo-network.nvim",
   event = "VeryLazy",
   opts = {
     keys = {
