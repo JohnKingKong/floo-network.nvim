@@ -86,7 +86,7 @@ function M.switch_to_other_buffer()
   if best then
     vim.cmd("buffer " .. best)
   else
-    vim.notify("No other buffer open in this workspace", vim.log.levels.INFO)
+    vim.notify("No other buffer open in this fireplace", vim.log.levels.INFO)
   end
 end
 
@@ -103,7 +103,7 @@ function M.set_pinned(tabid, pinned)
 end
 
 function M.rename(tabid)
-  vim.ui.input({ prompt = "Workspace name: ", default = M.get_name(tabid) }, function(input)
+  vim.ui.input({ prompt = "Fireplace name: ", default = M.get_name(tabid) }, function(input)
     if input and input ~= "" then
       M.set_name(tabid, input)
       if current and current.tabid == tabid then
@@ -122,34 +122,44 @@ function M.toggle_pin_current()
   M.refresh_open()
 end
 
--- Closes the current tab, confirming first if it's pinned.
-function M.close_current()
-  local tabid = vim.api.nvim_get_current_tabpage()
+-- Closes a given tab, confirming first if it's pinned. If the dropdown is
+-- open in that tab, closes the dropdown first: tabclose would otherwise
+-- destroy it without going through M.close(), leaving `current` pointing at
+-- a dead win/buf so the next open_dropdown() thinks one is already open and
+-- no-ops.
+-- Returns true if the tab was actually closed.
+local function close_tab(tabid)
   if M.is_pinned(tabid) then
-    local choice = vim.fn.confirm(string.format('Close pinned workspace "%s"?', M.get_name(tabid)), "&Yes\n&No", 2)
+    local choice = vim.fn.confirm(string.format('Close pinned fireplace "%s"?', M.get_name(tabid)), "&Yes\n&No", 2)
     if choice ~= 1 then
-      return
+      return false
     end
   end
-  -- The dropdown is a floating window inside this tab; tabclose would destroy
-  -- it without going through M.close(), leaving `current` pointing at a dead
-  -- win/buf so the next open_dropdown() thinks one is already open and no-ops.
-  M.close()
-  local ok, err = pcall(vim.cmd, "tabclose")
+  if current and current.tabid == tabid then
+    M.close()
+  end
+  local tabnr = vim.api.nvim_tabpage_get_number(tabid)
+  local ok, err = pcall(vim.cmd, tabnr .. "tabclose")
   if not ok then
     vim.notify(err, vim.log.levels.WARN)
+    return false
   end
+  return true
 end
 
--- Closes every tab except the current one and any pinned ones.
+-- Closes the current tab, confirming first if it's pinned.
+function M.close_current()
+  close_tab(vim.api.nvim_get_current_tabpage())
+end
+
+-- Closes every tab except the current one, confirming first for any pinned
+-- ones (same as close_current/close_at_cursor) rather than silently skipping
+-- them.
 function M.close_others()
   local current_tab = vim.api.nvim_get_current_tabpage()
   for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
-    if tabid ~= current_tab and not M.is_pinned(tabid) and vim.api.nvim_tabpage_is_valid(tabid) then
-      local ok, err = pcall(vim.cmd, vim.api.nvim_tabpage_get_number(tabid) .. "tabclose")
-      if not ok then
-        vim.notify(err, vim.log.levels.WARN)
-      end
+    if tabid ~= current_tab and vim.api.nvim_tabpage_is_valid(tabid) then
+      close_tab(tabid)
     end
   end
   -- Refresh rather than close: the dropdown (if open) lives in current_tab,
@@ -260,6 +270,23 @@ local function toggle_pin_at_cursor()
   end
 end
 
+local function close_at_cursor()
+  if not current then
+    return
+  end
+  local line = vim.api.nvim_win_get_cursor(current.winid)[1]
+  local target = current.line_to_tab[line]
+  if not target or not vim.api.nvim_tabpage_is_valid(target) then
+    return
+  end
+  -- close_tab() closes the dropdown itself (via M.close()) if `target` is the
+  -- tab it lives in, so `current` is correctly nil by the time refresh_open()
+  -- runs in that case and it safely no-ops.
+  if close_tab(target) then
+    M.refresh_open()
+  end
+end
+
 -- Rewrites the open dropdown's contents/size in place (e.g. after a
 -- rename/pin) without closing it.
 function M.refresh_open()
@@ -323,6 +350,7 @@ local function make_buf()
   end
   vim.keymap.set("n", "r", rename_at_cursor, opts)
   vim.keymap.set("n", "p", toggle_pin_at_cursor, opts)
+  vim.keymap.set("n", "d", close_at_cursor, opts)
   vim.keymap.set("n", "<Esc>", M.close, opts)
 
   -- Cursor visibility follows focus, but the window itself stays open until

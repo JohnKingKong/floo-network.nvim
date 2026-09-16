@@ -30,18 +30,18 @@ function M.setup(opts)
     end
   end
 
-  map(keys.new, M.new_workspace, "Floo: New Workspace")
-  map(keys.rename, M.rename_current, "Floo: Rename Workspace")
-  map(keys.pin, M.toggle_pin_current, "Floo: Toggle Pin Workspace")
-  map(keys.switch, M.open_dropdown, "Floo: Switch Workspace")
-  map(keys.close, M.close_current, "Floo: Close Workspace")
-  map(keys.close_others, M.close_others, "Floo: Close Other Workspaces")
-  map(keys.switch_buffer, M.switch_to_other_buffer, "Floo: Switch to Other Buffer (this workspace)")
+  map(keys.new, M.new_workspace, "Floo: New Fireplace")
+  map(keys.rename, M.rename_current, "Floo: Rename Fireplace")
+  map(keys.pin, M.toggle_pin_current, "Floo: Toggle Pin Fireplace")
+  map(keys.switch, M.open_dropdown, "Floo: Switch Fireplace")
+  map(keys.close, M.close_current, "Floo: Close Fireplace")
+  map(keys.close_others, M.close_others, "Floo: Close Other Fireplaces")
+  map(keys.switch_buffer, M.switch_to_other_buffer, "Floo: Switch to Other Buffer (this fireplace)")
 
   if keys.explorer and config.neo_tree.enabled and has_neo_tree() then
     map(keys.explorer, function()
       require("neo-tree.command").execute({ toggle = true, dir = vim.fn.getcwd(-1, 0) })
-    end, "Floo: Explorer (Workspace Dir)")
+    end, "Floo: Explorer (Fireplace Dir)")
   end
 
   if config.session.enabled and config.session.persist then
@@ -82,16 +82,23 @@ end
 
 -- Opens a new tab as a self-contained workspace scoped to a chosen folder.
 function M.new_workspace()
-  vim.ui.input({ prompt = "Workspace folder: ", completion = "dir", default = vim.fn.getcwd() .. "/" }, function(input)
+  vim.ui.input({ prompt = "Fireplace folder: ", completion = "dir", default = vim.fn.getcwd() .. "/" }, function(input)
     if not input or input == "" then
       return
     end
     local dir = vim.fn.fnamemodify(input, ":p")
     vim.cmd("tabnew")
+    -- tabnew's initial [No Name] scratch buffer becomes an orphan once
+    -- neo-tree opens: it creates its own sidebar window rather than reusing
+    -- this one, leaving the empty buffer sitting in a second window forever.
+    local scratch_buf = vim.api.nvim_get_current_buf()
     vim.cmd("tcd " .. vim.fn.fnameescape(dir))
     switcher.set_name(vim.api.nvim_get_current_tabpage(), vim.fn.fnamemodify(dir, ":h:t"))
     if neo_tree_config.enabled and has_neo_tree() then
       require("neo-tree.command").execute({ toggle = false, dir = dir })
+      if vim.api.nvim_buf_is_valid(scratch_buf) and vim.api.nvim_get_current_buf() ~= scratch_buf then
+        pcall(vim.api.nvim_buf_delete, scratch_buf, { force = true })
+      end
     end
   end)
 end

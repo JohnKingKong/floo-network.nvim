@@ -1,4 +1,4 @@
-*floo.txt*  Workspace tabs for Neovim, with a Floo Network twist
+*floo.txt*  Fireplace tabs for Neovim, with a Floo Network twist
 
 ==============================================================================
 CONTENTS                                                       *floo-contents*
@@ -11,7 +11,7 @@ CONTENTS                                                       *floo-contents*
 ==============================================================================
 1. Introduction                                            *floo-introduction*
 
-floo-network.nvim turns each Neovim tab into an independent workspace scoped to its
+floo-network.nvim turns each Neovim tab into an independent fireplace scoped to its
 own directory. See the README for the full Floo Network naming rationale
 and a keymap table.
 
@@ -32,7 +32,7 @@ See `:help floo-setup` above and README.md for the complete config schema
 4. Public API                                                       *floo-api*
 
 require("floo").buf_belongs_to_current_workspace({bufnr})
-    Returns whether {bufnr} belongs to the currently active workspace tab.
+    Returns whether {bufnr} belongs to the currently active fireplace tab.
     Intended for wiring into bufferline.nvim's `custom_filter` — see
     README.md.
 
