@@ -131,6 +131,10 @@ function M.close_current()
       return
     end
   end
+  -- The dropdown is a floating window inside this tab; tabclose would destroy
+  -- it without going through M.close(), leaving `current` pointing at a dead
+  -- win/buf so the next open_dropdown() thinks one is already open and no-ops.
+  M.close()
   local ok, err = pcall(vim.cmd, "tabclose")
   if not ok then
     vim.notify(err, vim.log.levels.WARN)
@@ -148,6 +152,10 @@ function M.close_others()
       end
     end
   end
+  -- Refresh rather than close: the dropdown (if open) lives in current_tab,
+  -- which survives, but its line_to_tab entries for the now-closed tabs are
+  -- stale until the list is rebuilt.
+  M.refresh_open()
 end
 
 local function sorted_tabs()
