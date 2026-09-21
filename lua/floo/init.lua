@@ -88,17 +88,17 @@ function M.new_workspace()
     end
     local dir = vim.fn.fnamemodify(input, ":p")
     vim.cmd("tabnew")
-    -- tabnew's initial [No Name] scratch buffer becomes an orphan once
-    -- neo-tree opens: it creates its own sidebar window rather than reusing
-    -- this one, leaving the empty buffer sitting in a second window forever.
-    local scratch_buf = vim.api.nvim_get_current_buf()
+    -- Keep tabnew's initial [No Name] buffer as the workspace's actual empty
+    -- edit area alongside neo-tree's sidebar, rather than deleting it: with
+    -- neo-tree enabled it's the *only* other window right after creating a
+    -- workspace, so deleting it leaves neo-tree alone - closing your last
+    -- window then closes the whole tab (standard Vim behavior). Opening a
+    -- real file from neo-tree replaces this buffer in place as normal, so
+    -- there's nothing left over once you do.
     vim.cmd("tcd " .. vim.fn.fnameescape(dir))
     switcher.set_name(vim.api.nvim_get_current_tabpage(), vim.fn.fnamemodify(dir, ":h:t"))
     if neo_tree_config.enabled and has_neo_tree() then
       require("neo-tree.command").execute({ toggle = false, dir = dir })
-      if vim.api.nvim_buf_is_valid(scratch_buf) and vim.api.nvim_get_current_buf() ~= scratch_buf then
-        pcall(vim.api.nvim_buf_delete, scratch_buf, { force = true })
-      end
     end
   end)
 end
