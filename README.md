@@ -75,7 +75,8 @@ specific binding without affecting the others.
   if neo-tree.nvim is installed.
 - **bufferline.nvim**: not wired automatically (floo-network.nvim doesn't own your
   bufferline config). To scope the buffer bar to the current fireplace,
-  add this to your own bufferline spec:
+  and show the current fireplace's name (with a pin icon when pinned) in
+  the tabline itself, add this to your own bufferline spec:
 
   ```lua
   opts = {
@@ -83,9 +84,25 @@ specific binding without affecting the others.
       custom_filter = function(bufnr)
         return require("floo").buf_belongs_to_current_workspace(bufnr)
       end,
+      custom_areas = {
+        left = function()
+          return require("floo.tabline").custom_area()
+        end,
+      },
     },
   }
   ```
+
+## Quit protection
+
+`:q`/`:quit` and `:qa`/`:qall`/`:quitall` (including their `!` forms —
+`!` only means "discard unsaved changes", a different concern from
+"don't silently lose a pinned workspace") confirm first whenever they
+would close a pinned fireplace: `:q` when it's about to close that
+fireplace's last window, `:qa`/`:quitall` when any fireplace is pinned.
+Vim's own unsaved-changes prompt is unrelated to this — a pinned
+fireplace with every buffer saved would otherwise close with no warning
+at all.
 
 ## Keymaps
 

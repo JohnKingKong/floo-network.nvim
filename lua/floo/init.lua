@@ -6,6 +6,7 @@ local M = {}
 local config_mod = require("floo.config")
 local switcher = require("floo.switcher")
 local session = require("floo.session")
+local quit_guard = require("floo.quit_guard")
 
 local function has_neo_tree()
   return pcall(require, "neo-tree.command")
@@ -21,6 +22,7 @@ function M.setup(opts)
   neo_tree_config = config.neo_tree
   switcher.setup(config)
   session.setup(config.session, config.neo_tree)
+  quit_guard.setup()
 
   local keys = config.keys or {}
 
@@ -43,6 +45,15 @@ function M.setup(opts)
       require("neo-tree.command").execute({ toggle = true, dir = vim.fn.getcwd(-1, 0) })
     end, "Floo: Explorer (Fireplace Dir)")
   end
+
+  -- Harmless no-op for anyone not using the tabline.lua bufferline
+  -- integration; keeps the current fireplace's name (which tabline.lua
+  -- reads fresh on every render) in sync with the visible tab on switch.
+  vim.api.nvim_create_autocmd("TabEnter", {
+    callback = function()
+      pcall(vim.cmd, "redrawtabline")
+    end,
+  })
 
   if config.session.enabled and config.session.persist then
     vim.api.nvim_create_autocmd("VimLeavePre", {

@@ -99,6 +99,10 @@ end
 
 function M.toggle_pin(tabid)
   vim.api.nvim_tabpage_set_var(tabid, "floo_workspace_pinned", not M.is_pinned(tabid))
+  -- Harmless no-op for anyone not using the tabline.lua bufferline
+  -- integration (see its own comment); redraws it immediately for anyone
+  -- who is, rather than waiting for some unrelated redraw to trigger it.
+  pcall(vim.cmd, "redrawtabline")
 end
 
 function M.set_pinned(tabid, pinned)
@@ -109,6 +113,7 @@ function M.rename(tabid)
   vim.ui.input({ prompt = "Fireplace name: ", default = M.get_name(tabid) }, function(input)
     if input and input ~= "" then
       M.set_name(tabid, input)
+      pcall(vim.cmd, "redrawtabline")
       if current and current.tabid == tabid then
         M.refresh_open()
       end
