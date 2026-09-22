@@ -155,8 +155,6 @@ function M.restore()
   end
 
   local active_tab = vim.api.nvim_get_current_tabpage()
-  local has_neo_tree = neo_tree_config.enabled and ensure_neo_tree_loaded()
-  log("restore: has_neo_tree=" .. tostring(has_neo_tree))
 
   for i, tabid in ipairs(vim.api.nvim_list_tabpages()) do
     local entry = meta[i]
@@ -166,24 +164,53 @@ function M.restore()
       end
       switcher.set_pinned(tabid, entry.pinned == true)
     end
-
-    vim.api.nvim_set_current_tabpage(tabid)
-    if has_neo_tree then
-      local dir = vim.fn.getcwd(-1, vim.api.nvim_tabpage_get_number(tabid))
-      log("restore: tab " .. i .. " opening neo-tree for " .. dir)
-      require("neo-tree.command").execute({ toggle = false, dir = dir })
-      -- neo-tree's window creation isn't fully synchronous; without
-      -- yielding here, back-to-back execute() calls across tabs can race
-      -- and silently drop one tab's sidebar.
-      vim.wait(50)
-      log("restore: tab " .. i .. " neo-tree done")
-    end
   end
 
   if vim.api.nvim_tabpage_is_valid(active_tab) then
     vim.api.nvim_set_current_tabpage(active_tab)
   end
-  log("restore: done")
+  log("restore: names/pins applied")
+
+  -- Reopening neo-tree sidebars is deferred to the next tick, separate from
+  -- everything above. ensure_neo_tree_loaded() can force neo-tree.nvim (a
+  -- separately lazy-loaded plugin) to load right here via lazy.nvim's own
+  -- load() API -- doing that synchronously, in the middle of floo's own
+  -- VeryLazy handler, raced with lazy.nvim's internal event-handler
+  -- bookkeeping for other plugins' own lazy-load triggers and produced a
+  -- real "Invalid buffer id: 1" error from lazy.nvim's own code on every
+  -- startup (confirmed: this log's has_neo_tree only ever read true again
+  -- once this force-load was added, exactly when the new error started).
+  -- vim.schedule lets the current VeryLazy cycle -- every plugin's handler,
+  -- including lazy.nvim's own bookkeeping for it -- finish first.
+  vim.schedule(function()
+    log("restore: deferred neo-tree reopen starting")
+    local has_neo_tree = neo_tree_config.enabled and ensure_neo_tree_loaded()
+    log("restore: has_neo_tree=" .. tostring(has_neo_tree))
+    if not has_neo_tree then
+      log("restore: done (no neo-tree reopen)")
+      return
+    end
+
+    local reopen_active_tab = vim.api.nvim_get_current_tabpage()
+    for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
+      if vim.api.nvim_tabpage_is_valid(tabid) then
+        vim.api.nvim_set_current_tabpage(tabid)
+        local dir = vim.fn.getcwd(-1, vim.api.nvim_tabpage_get_number(tabid))
+        log("restore: tab opening neo-tree for " .. dir)
+        require("neo-tree.command").execute({ toggle = false, dir = dir })
+        -- neo-tree's window creation isn't fully synchronous; without
+        -- yielding here, back-to-back execute() calls across tabs can race
+        -- and silently drop one tab's sidebar.
+        vim.wait(50)
+        log("restore: tab neo-tree done")
+      end
+    end
+
+    if vim.api.nvim_tabpage_is_valid(reopen_active_tab) then
+      vim.api.nvim_set_current_tabpage(reopen_active_tab)
+    end
+    log("restore: deferred neo-tree reopen done")
+  end)
 end
 
 return M
