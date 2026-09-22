@@ -165,47 +165,54 @@ function M.restore()
     return
   end
 
-  log("restore: sourcing session file")
-  vim.cmd("silent! source " .. vim.fn.fnameescape(SESSION_FILE))
-  log("restore: session file sourced, tabs=" .. #vim.api.nvim_list_tabpages())
-
-  local meta = {}
-  if vim.fn.filereadable(META_FILE) == 1 then
-    local ok, decoded = pcall(vim.json.decode, table.concat(vim.fn.readfile(META_FILE), "\n"))
-    if ok and type(decoded) == "table" then
-      meta = decoded
-    end
-  end
-
-  local active_tab = vim.api.nvim_get_current_tabpage()
-
-  for i, tabid in ipairs(vim.api.nvim_list_tabpages()) do
-    local entry = meta[i]
-    if entry then
-      if entry.name then
-        switcher.set_name(tabid, entry.name)
-      end
-      switcher.set_pinned(tabid, entry.pinned == true)
-    end
-  end
-
-  if vim.api.nvim_tabpage_is_valid(active_tab) then
-    vim.api.nvim_set_current_tabpage(active_tab)
-  end
-  log("restore: names/pins applied")
-
-  -- Reopening neo-tree sidebars is deferred to the next tick, separate from
-  -- everything above. ensure_neo_tree_loaded() can force neo-tree.nvim (a
-  -- separately lazy-loaded plugin) to load right here via lazy.nvim's own
-  -- load() API -- doing that synchronously, in the middle of floo's own
-  -- VeryLazy handler, raced with lazy.nvim's internal event-handler
-  -- bookkeeping for other plugins' own lazy-load triggers and produced a
-  -- real "Invalid buffer id: 1" error from lazy.nvim's own code on every
-  -- startup (confirmed: this log's has_neo_tree only ever read true again
-  -- once this force-load was added, exactly when the new error started).
+  -- The whole body below is deferred to the next tick rather than run
+  -- synchronously inside floo's own VeryLazy handler. VeryLazy handler
+  -- order across different plugins is unspecified, and two distinct races
+  -- fall out of that:
+  --   1. ":mksession" sourcing opens every restored file, firing
+  --      BufReadPost/LazyFile for each -- if that happens before
+  --      nvim-treesitter's own VeryLazy-triggered event handler has been
+  --      wired up by lazy.nvim (nvim-treesitter is ALSO a VeryLazy/LazyFile
+  --      handler), treesitter's lazy-load trigger never catches it and the
+  --      restored buffers open with no syntax highlighting at all.
+  --   2. ensure_neo_tree_loaded() can force neo-tree.nvim (a separately
+  --      lazy-loaded plugin) to load via lazy.nvim's own load() API --
+  --      doing that synchronously, in the middle of floo's own VeryLazy
+  --      handler, raced with lazy.nvim's internal event-handler bookkeeping
+  --      for other plugins' own lazy-load triggers and produced a real
+  --      "Invalid buffer id: 1" error from lazy.nvim's own code.
   -- vim.schedule lets the current VeryLazy cycle -- every plugin's handler,
   -- including lazy.nvim's own bookkeeping for it -- finish first.
   vim.schedule(function()
+    log("restore: sourcing session file")
+    vim.cmd("silent! source " .. vim.fn.fnameescape(SESSION_FILE))
+    log("restore: session file sourced, tabs=" .. #vim.api.nvim_list_tabpages())
+
+    local meta = {}
+    if vim.fn.filereadable(META_FILE) == 1 then
+      local ok, decoded = pcall(vim.json.decode, table.concat(vim.fn.readfile(META_FILE), "\n"))
+      if ok and type(decoded) == "table" then
+        meta = decoded
+      end
+    end
+
+    local active_tab = vim.api.nvim_get_current_tabpage()
+
+    for i, tabid in ipairs(vim.api.nvim_list_tabpages()) do
+      local entry = meta[i]
+      if entry then
+        if entry.name then
+          switcher.set_name(tabid, entry.name)
+        end
+        switcher.set_pinned(tabid, entry.pinned == true)
+      end
+    end
+
+    if vim.api.nvim_tabpage_is_valid(active_tab) then
+      vim.api.nvim_set_current_tabpage(active_tab)
+    end
+    log("restore: names/pins applied")
+
     log("restore: deferred neo-tree reopen starting")
     local has_neo_tree = neo_tree_config.enabled and ensure_neo_tree_loaded()
     log("restore: has_neo_tree=" .. tostring(has_neo_tree))
