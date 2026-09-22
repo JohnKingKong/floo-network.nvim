@@ -57,7 +57,10 @@ function M.buf_belongs_to_tab(bufnr, tabid)
   end
   local tabnr = vim.api.nvim_tabpage_get_number(tabid)
   local cwd = vim.fn.getcwd(-1, tabnr)
-  return vim.startswith(name, cwd)
+  -- A plain vim.startswith(name, cwd) has no path-boundary check, so a
+  -- workspace at ~/proj would wrongly claim a buffer from ~/proj-old too
+  -- (the string "~/proj-old" textually starts with "~/proj").
+  return name == cwd or vim.startswith(name, cwd .. "/")
 end
 
 -- Tab-aware replacement for ":e #". Vim's alternate buffer register isn't
@@ -241,6 +244,13 @@ local function handle_click()
   end
   local mouse = vim.fn.getmousepos()
   if mouse.winid ~= current.winid then
+    return
+  end
+  -- A click on/near the floating window's border can report a line outside
+  -- the buffer's actual content (e.g. line 0), which nvim_win_set_cursor
+  -- throws on ("Cursor position outside buffer") rather than clamping.
+  local line_count = vim.api.nvim_buf_line_count(current.bufnr)
+  if mouse.line < 1 or mouse.line > line_count then
     return
   end
   vim.api.nvim_win_set_cursor(current.winid, { mouse.line, 0 })
