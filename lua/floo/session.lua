@@ -51,13 +51,36 @@ end
 -- lazy.nvim to load it explicitly first; pcall'd throughout so this is a
 -- harmless no-op for anyone not using lazy.nvim or not having neo-tree
 -- installed at all.
+-- lazy.load() forces neo-tree.nvim's own lazy-load event handlers to fire,
+-- which replays whatever autocmd event (FileType/BufReadPost) was queued
+-- against Neovim's very first startup buffer before neo-tree ever loaded.
+-- By restore() time that buffer has already been replaced by :mksession
+-- sourcing, so the replay target is gone -- lazy.nvim's own event handler
+-- (lazy/core/handler/event.lua) reports this via vim.notify as "Invalid
+-- buffer id: 1". It's benign (confirmed: neo-tree still opens correctly)
+-- and is lazy.nvim's own internal quirk, not something callable code can
+-- prevent -- so this suppresses just that one notification for the
+-- duration of the load call rather than lazy's notifications generally.
+local function load_neo_tree_quietly(lazy)
+  local original_notify = vim.notify
+  vim.notify = function(msg, ...)
+    if type(msg) == "string" and msg:find("Invalid buffer id", 1, true) then
+      return
+    end
+    return original_notify(msg, ...)
+  end
+  local ok = pcall(lazy.load, { plugins = { "neo-tree.nvim" } })
+  vim.notify = original_notify
+  return ok
+end
+
 local function ensure_neo_tree_loaded()
   if package.loaded["neo-tree.command"] then
     return true
   end
   local ok_lazy, lazy = pcall(require, "lazy")
   if ok_lazy then
-    pcall(lazy.load, { plugins = { "neo-tree.nvim" } })
+    load_neo_tree_quietly(lazy)
   end
   return pcall(require, "neo-tree.command")
 end
