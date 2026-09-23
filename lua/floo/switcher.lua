@@ -4,6 +4,8 @@
 -- pin/unpin. See README.md for why pin means what it means (Floo Network).
 local M = {}
 
+local log = require("floo.debug_log").log
+
 local NAMESPACE = vim.api.nvim_create_namespace("floo_switcher")
 local PIN_ICON = "󰐃 "
 local DEFAULT_GUICURSOR = vim.o.guicursor
@@ -159,6 +161,7 @@ end
 local function close_tab(tabid)
   if M.is_pinned(tabid) then
     local choice = vim.fn.confirm(string.format('Close pinned fireplace "%s"?', M.get_name(tabid)), "&Yes\n&No", 2)
+    log(string.format("close_tab: pinned fireplace %q, confirm choice=%d", M.get_name(tabid), choice))
     if choice ~= 1 then
       return false
     end

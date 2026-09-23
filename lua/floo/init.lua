@@ -55,6 +55,37 @@ function M.setup(opts)
     end,
   })
 
+  -- TEMPORARY: catches every window close, regardless of path (:q, ZQ,
+  -- some other plugin's nvim_win_close, etc. -- not just floo's own
+  -- close_tab/guard_quit/guard_quitall, which already log their own
+  -- confirm() results), and logs unconditionally whenever it's about to
+  -- close a PINNED fireplace's LAST window -- the "ground truth" signal
+  -- for chasing pinned fireplaces occasionally disappearing during long
+  -- Neovide sessions with no confirmed trigger yet. WinClosed fires
+  -- before the window is actually invalidated (confirmed empirically), so
+  -- the tab/pin state is still readable here. If this ever fires with no
+  -- corresponding "confirmed=true" log line from one of the guarded
+  -- paths, that's a close bypassing all of floo's own pin protection.
+  vim.api.nvim_create_autocmd("WinClosed", {
+    callback = function(args)
+      local winid = tonumber(args.match)
+      if not winid or not vim.api.nvim_win_is_valid(winid) then
+        return
+      end
+      local ok_tab, tabid = pcall(vim.api.nvim_win_get_tabpage, winid)
+      if not ok_tab then
+        return
+      end
+      local wins = vim.api.nvim_tabpage_list_wins(tabid)
+      local is_last = #wins == 1 and wins[1] == winid
+      if is_last and switcher.is_pinned(tabid) then
+        require("floo.debug_log").log(
+          string.format("WinClosed: pinned fireplace %q's last window (win=%d) is closing", switcher.get_name(tabid), winid)
+        )
+      end
+    end,
+  })
+
   if config.session.enabled and config.session.persist then
     vim.api.nvim_create_autocmd("VimLeavePre", {
       callback = function()

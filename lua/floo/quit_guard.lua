@@ -18,6 +18,8 @@
 -- :qa!.
 local M = {}
 
+local log = require("floo.debug_log").log
+
 local function any_pinned_tab()
   for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
     if require("floo").is_pinned(tabid) then
@@ -46,7 +48,9 @@ function M.guard_quit(bang)
   local closes_fireplace = #vim.api.nvim_tabpage_list_wins(tabid) == 1
   if closes_fireplace and require("floo").is_pinned(tabid) then
     local name = require("floo").get_name(tabid)
-    if not confirm(string.format('Close pinned fireplace "%s"?', name)) then
+    local ok = confirm(string.format('Close pinned fireplace "%s"?', name))
+    log(string.format("guard_quit: pinned fireplace %q, bang=%s, confirmed=%s", name, tostring(bang), tostring(ok)))
+    if not ok then
       return
     end
   end
@@ -58,7 +62,9 @@ function M.guard_quitall(bang)
     local count = count_pinned_tabs()
     local msg = count == 1 and "1 pinned fireplace is still open. Quit anyway?"
       or (count .. " pinned fireplaces are still open. Quit anyway?")
-    if not confirm(msg) then
+    local ok = confirm(msg)
+    log(string.format("guard_quitall: %d pinned fireplace(s), bang=%s, confirmed=%s", count, tostring(bang), tostring(ok)))
+    if not ok then
       return
     end
   end
@@ -97,6 +103,24 @@ function M.setup()
   abbrev("qa")
   abbrev("qall")
   abbrev("quitall")
+
+  -- ZZ/ZQ are handled by Neovim's built-in normal-mode dispatch, not the
+  -- mapping table (verified: `nmap ZZ`/`nmap ZQ` report no mapping) -- they
+  -- never touch the command line, so the cnoreabbrev guards above can't see
+  -- them at all. Native ZZ writes the buffer first if modified, then closes
+  -- the window like ":x"; ZQ closes without writing, like ":q!" (but only
+  -- for the current window, without the "last window" check ":q!" gives
+  -- you) -- both replicated here via guard_quit, which already handles "is
+  -- this about to close a pinned fireplace's last window".
+  vim.keymap.set("n", "ZZ", function()
+    if vim.bo.modified then
+      vim.cmd("write")
+    end
+    M.guard_quit(false)
+  end, { desc = "Write (if modified) and close window, confirming first if pinned" })
+  vim.keymap.set("n", "ZQ", function()
+    M.guard_quit(true)
+  end, { desc = "Close window without writing, confirming first if pinned" })
 end
 
 return M

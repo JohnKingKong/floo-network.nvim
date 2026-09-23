@@ -23,19 +23,7 @@ local switcher = require("floo.switcher")
 local SESSION_FILE = vim.fn.stdpath("state") .. "/floo_session.vim"
 local META_FILE = vim.fn.stdpath("state") .. "/floo_session.json"
 
--- TEMPORARY: diagnostic logging while chasing the "Invalid buffer id: 1"
--- startup error from lazy.nvim's event handler. Safe to remove once that's
--- confirmed or ruled out.
-local DEBUG_LOG = vim.fn.stdpath("state") .. "/floo_debug.log"
-local function log(msg)
-  local fd = io.open(DEBUG_LOG, "a")
-  if fd then
-    -- hrtime (monotonic nanoseconds) alongside wall-clock time so log lines
-    -- within the same second can still be ordered precisely.
-    fd:write(string.format("[%s %d] %s\n", os.date("%H:%M:%S"), vim.loop.hrtime(), msg))
-    fd:close()
-  end
-end
+local log = require("floo.debug_log").log
 
 local config = { enabled = true, persist = "pinned" }
 local neo_tree_config = { enabled = true }
@@ -92,17 +80,22 @@ end
 -- into the saved session despite persist = "pinned"; that case is worth a
 -- warning since it breaks the mode's documented guarantee without saying so.
 local function close_unpinned_tabs()
+  for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
+    log(string.format("close_unpinned_tabs: tab %q is_pinned=%s", switcher.get_name(tabid), tostring(switcher.is_pinned(tabid))))
+  end
   local blocked = {}
   while #vim.api.nvim_list_tabpages() > 1 do
     local closed_one = false
     for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
       if not switcher.is_pinned(tabid) then
+        local name = switcher.get_name(tabid)
         local ok = pcall(vim.cmd, vim.api.nvim_tabpage_get_number(tabid) .. "tabclose")
+        log(string.format("close_unpinned_tabs: closed %q ok=%s", name, tostring(ok)))
         if ok then
           closed_one = true
           break
         else
-          blocked[switcher.get_name(tabid)] = true
+          blocked[name] = true
         end
       end
     end
