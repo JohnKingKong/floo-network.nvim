@@ -43,8 +43,8 @@ function M.set_name(tabid, name)
 end
 
 -- Whether a buffer's file lives under the given tab's cwd (unnamed scratch
--- buffers always count). Unlisted buffers (neo-tree's tree, terminals, etc.)
--- never count: neo-tree's internal buffer name is literally
+-- buffers always count). Unlisted buffers (neo-tree's tree, etc.) never
+-- count: neo-tree's internal buffer name is literally
 -- "<cwd>/neo-tree filesystem [N]", which would otherwise pass the cwd-prefix
 -- check below and get treated as a switchable file.
 function M.buf_belongs_to_tab(bufnr, tabid)
@@ -57,6 +57,26 @@ function M.buf_belongs_to_tab(bufnr, tabid)
   end
   local tabnr = vim.api.nvim_tabpage_get_number(tabid)
   local cwd = vim.fn.getcwd(-1, tabnr)
+
+  -- Terminal buffers (:terminal buffers are buflisted=true by default) are
+  -- named "term://<cwd>//<pid>:<cmd>", where <cwd> is Neovim's own cwd at
+  -- the moment :terminal was invoked (tilde-shortened when under $HOME) --
+  -- not a literal path prefix like every other buffer name, so the plain
+  -- startswith check below always rejected them even when opened from
+  -- exactly this tab (e.g. a button whose command `cd`s further down: that
+  -- cd happens inside the spawned shell, after the buffer name is already
+  -- fixed). Without this, a still-running dev-server terminal disappears
+  -- from the fireplace's bufferline the moment its window closes, with no
+  -- obvious way back to it.
+  if vim.bo[bufnr].buftype == "terminal" then
+    local term_cwd = name:match("^term://(.-)//")
+    if not term_cwd then
+      return false
+    end
+    term_cwd = vim.fn.fnamemodify(term_cwd, ":p"):gsub("/$", "")
+    return term_cwd == cwd or vim.startswith(term_cwd, cwd .. "/")
+  end
+
   -- A plain vim.startswith(name, cwd) has no path-boundary check, so a
   -- workspace at ~/proj would wrongly claim a buffer from ~/proj-old too
   -- (the string "~/proj-old" textually starts with "~/proj").
