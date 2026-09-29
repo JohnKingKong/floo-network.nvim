@@ -117,9 +117,9 @@ at all.
 | `<leader>bb` | Switch to another buffer open in this fireplace only |
 | `<leader>e` | Open the file explorer scoped to this fireplace (requires neo-tree.nvim) |
 
-Inside the dropdown: `<CR>` or click a line to switch, `r` to rename, `p`
-to pin/unpin, `d` to close (confirms if pinned), `<Esc>` to close the
-dropdown.
+Inside the dropdown: `<CR>` or click a line to switch, a number key (`1`-`9`)
+to jump straight to that line, `r` to rename, `p` to pin/unpin, `d` to close
+(confirms if pinned), `<Esc>` to close the dropdown.
 
 ## License
 
