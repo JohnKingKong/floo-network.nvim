@@ -285,6 +285,21 @@ local function handle_click()
   switch_at_cursor()
 end
 
+-- Jumps straight to the fireplace shown at number `n` (1-9), matching the
+-- prefix refresh_open() writes into the dropdown. No-ops if that slot is
+-- empty (fewer than n fireplaces open).
+local function select_by_number(n)
+  if not current then
+    return
+  end
+  local target = current.line_to_tab[n]
+  if not target or not vim.api.nvim_tabpage_is_valid(target) then
+    return
+  end
+  M.close()
+  vim.api.nvim_set_current_tabpage(target)
+end
+
 local function rename_at_cursor()
   if not current then
     return
@@ -339,7 +354,8 @@ function M.refresh_open()
   local width = 10
   for i, id in ipairs(tabs) do
     local icon = M.is_pinned(id) and PIN_ICON or "  "
-    local text = " " .. icon .. M.get_name(id) .. " "
+    local number = i <= 9 and (tostring(i) .. " ") or "  "
+    local text = " " .. number .. icon .. M.get_name(id) .. " "
     lines[i] = text
     width = math.max(width, vim.fn.strdisplaywidth(text) + 2)
     current.line_to_tab[i] = id
@@ -390,6 +406,11 @@ local function make_buf()
   vim.keymap.set("n", "p", toggle_pin_at_cursor, opts)
   vim.keymap.set("n", "d", close_at_cursor, opts)
   vim.keymap.set("n", "<Esc>", M.close, opts)
+  for i = 1, 9 do
+    vim.keymap.set("n", tostring(i), function()
+      select_by_number(i)
+    end, opts)
+  end
 
   -- Cursor visibility follows focus, but the window itself stays open until
   -- an explicit close (select / <Esc> / toggle keystroke) — clicking into
