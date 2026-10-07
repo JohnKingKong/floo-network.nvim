@@ -6,6 +6,19 @@
 --   opts.options.custom_areas.left = function()
 --     return require("floo.tabline").custom_area()
 --   end
+--
+-- M.render() itself is engine-agnostic (a bare function returning a plain
+-- string), so it also drops straight into NvChad's tabufline, which has the
+-- same kind of extension point under a different name -- opts.modules (a
+-- table of plain no-arg functions merged into its built-ins) plus opts.order
+-- (where they render), instead of bufferline's custom_areas. Wire it into
+-- your chadrc.lua:
+--   M.ui = {
+--     tabufline = {
+--       modules = { floo_name = require("floo.tabline").render },
+--       order = { "treeOffset", "floo_name", "buffers", "tabs", "btns" },
+--     },
+--   }
 local M = {}
 
 local PIN_ICON = "󰐃 "
