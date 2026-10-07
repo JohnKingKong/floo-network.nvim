@@ -93,6 +93,26 @@ specific binding without affecting the others.
   }
   ```
 
+- **NvChad's tabufline**: `floo.tabline`'s `render()` is a bare no-arg
+  function returning a plain string, the exact shape tabufline's own
+  `modules` extension point expects — no separate adapter needed, just
+  wire it into your `chadrc.lua` (wrapped, not passed directly: chadrc.lua's
+  table is built eagerly at `require()` time, before lazy.nvim has loaded a
+  `VeryLazy`-triggered plugin like this one on a fresh install):
+
+  ```lua
+  M.ui = {
+    tabufline = {
+      modules = { floo_name = function() return require("floo.tabline").render() end },
+      order = { "treeOffset", "floo_name", "buffers", "tabs", "btns" },
+    },
+  }
+  ```
+
+  Scoping buffers to the current fireplace (the `custom_filter` equivalent
+  above) isn't available for tabufline — it renders every buffer in
+  `vim.t.bufs` directly rather than going through a filterable buffer list.
+
 ## Quit protection
 
 `:q`/`:quit` and `:qa`/`:qall`/`:quitall` (including their `!` forms —
