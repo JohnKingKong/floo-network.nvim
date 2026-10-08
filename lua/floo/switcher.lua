@@ -44,6 +44,49 @@ function M.set_name(tabid, name)
   vim.api.nvim_tabpage_set_var(tabid, "floo_workspace_name", name)
 end
 
+-- Whether a tab was explicitly registered as a fireplace (via new_workspace()
+-- or session restore), as opposed to a bare tab opened by something else
+-- entirely (:tabnew, another plugin, an external tool's nvim --remote-tab).
+function M.is_registered(tabid)
+  return tab_var(tabid, "floo_workspace_name") ~= nil
+end
+
+-- Finds the registered fireplace whose directory is the longest matching
+-- prefix of `path` (longest wins so a nested fireplace, if one ever exists,
+-- is preferred over its parent). Used to detect when a file opened by
+-- something outside floo-network's own control (e.g. lazygit's nvim-remote
+-- editor preset, which always opens edits in a brand-new tab with no
+-- "reuse if already open" option) actually belongs to an existing
+-- fireplace, so it can be redirected there instead of left as an untracked
+-- duplicate tab.
+function M.find_fireplace_for_path(path)
+  local best, best_len = nil, -1
+  for _, tabid in ipairs(vim.api.nvim_list_tabpages()) do
+    if M.is_registered(tabid) then
+      local tabnr = vim.api.nvim_tabpage_get_number(tabid)
+      local cwd = vim.fn.getcwd(-1, tabnr)
+      if (path == cwd or vim.startswith(path, cwd .. "/")) and #cwd > best_len then
+        best, best_len = tabid, #cwd
+      end
+    end
+  end
+  return best
+end
+
+-- The first window in a tab that isn't showing neo-tree's sidebar, so
+-- redirecting a file there doesn't clobber the explorer. Falls back to the
+-- tab's first window if every window happens to be neo-tree (unlikely, but
+-- better than erroring).
+function M.pick_edit_win(tabid)
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(tabid)) do
+    local buf = vim.api.nvim_win_get_buf(winid)
+    if vim.bo[buf].filetype ~= "neo-tree" then
+      return winid
+    end
+  end
+  return vim.api.nvim_tabpage_list_wins(tabid)[1]
+end
+
 -- Whether a buffer's file lives under the given tab's cwd (unnamed scratch
 -- buffers always count). Unlisted buffers (neo-tree's tree, etc.) never
 -- count: neo-tree's internal buffer name is literally

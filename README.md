@@ -113,6 +113,27 @@ specific binding without affecting the others.
   above) isn't available for tabufline — it renders every buffer in
   `vim.t.bufs` directly rather than going through a filterable buffer list.
 
+## Files opened from outside Neovim
+
+Some external tools (lazygit's `nvim-remote` editor preset — what
+[`snacks.nvim`'s lazygit integration](https://github.com/folke/snacks.nvim)
+auto-configures when you press `e` there to edit a file — and anything else
+using Neovim's own `--remote-tab`) always open a file in a brand-new tab via
+RPC, with no option to reuse an existing one. Left alone, that produces
+exactly the kind of mess fireplaces are meant to prevent: a file from a
+project you already have open as a fireplace spawns an untracked duplicate
+tab instead of landing in that fireplace, and its displayed name falls back
+to whatever Neovim's global cwd happened to be at startup — not the file's
+actual directory.
+
+floo-network detects this (any new, unregistered tab that ends up showing a
+real file) and handles it automatically: if the file belongs to an existing
+fireplace, it's redirected there and the duplicate tab closes; otherwise the
+new tab is registered as its own fireplace, named from the nearest `.git`
+root (or the file's own directory if none is found) — the same as
+`new_workspace()` does, just triggered automatically instead of only via the
+explicit keymap.
+
 ## Quit protection
 
 `:q`/`:quit` and `:qa`/`:qall`/`:quitall` (including their `!` forms —

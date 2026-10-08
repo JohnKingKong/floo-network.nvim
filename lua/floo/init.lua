@@ -7,6 +7,7 @@ local config_mod = require("floo.config")
 local switcher = require("floo.switcher")
 local session = require("floo.session")
 local quit_guard = require("floo.quit_guard")
+local external_tabs = require("floo.external_tabs")
 
 local function has_neo_tree()
   return pcall(require, "neo-tree.command")
@@ -23,6 +24,7 @@ function M.setup(opts)
   switcher.setup(config)
   session.setup(config.session, config.neo_tree)
   quit_guard.setup()
+  external_tabs.setup()
 
   local keys = config.keys or {}
 
