@@ -27,6 +27,19 @@ local M = {}
 
 local switcher = require("floo.switcher")
 
+-- Opt-out for other plugins that deliberately create their own tab as part
+-- of their own UI (e.g. albus-conflictius.nvim's conflict-resolution view,
+-- opened via plain vim.cmd("tabnew")) -- confirmed: without this, such a
+-- tab looked identical to lazygit's --remote-tab from here (an
+-- unregistered tab that just gained a real file), so it got silently
+-- redirected into an existing fireplace and tabclose'd, taking the other
+-- plugin's own freshly-built keymaps/UI for that tab down with it, and
+-- leaving its floating window (if any) stranded on top of whatever ended
+-- up in the fireplace instead. Set this tab-local variable to true right
+-- after creating such a tab to make floo-network leave it alone entirely:
+--   vim.api.nvim_tabpage_set_var(vim.api.nvim_get_current_tabpage(), require("floo.external_tabs").IGNORE_TAB_VAR, true)
+M.IGNORE_TAB_VAR = "floo_ignore_external_tab"
+
 -- Nearest .git's parent directory, falling back to the file's own directory
 -- if none is found (e.g. a file outside any git repo).
 local function project_root_for(path)
@@ -37,11 +50,16 @@ local function project_root_for(path)
   return vim.fs.dirname(path)
 end
 
+local function tab_opted_out(tabid)
+  local ok, value = pcall(vim.api.nvim_tabpage_get_var, tabid, M.IGNORE_TAB_VAR)
+  return ok and value == true
+end
+
 local function handle(tabid, bufnr)
   if not vim.api.nvim_tabpage_is_valid(tabid) then
     return -- handled already by an earlier deferred firing for this same open
   end
-  if switcher.is_registered(tabid) then
+  if switcher.is_registered(tabid) or tab_opted_out(tabid) then
     return
   end
   if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].buftype ~= "" then

@@ -134,6 +134,22 @@ root (or the file's own directory if none is found) — the same as
 `new_workspace()` does, just triggered automatically instead of only via the
 explicit keymap.
 
+### Opting another plugin's own tab out of this
+
+If you maintain a plugin that deliberately opens its own tab as part of its
+own UI (e.g. a review/diff view), set this tab-local variable right after
+creating it so floo-network leaves it alone entirely — without it, such a
+tab looks identical to one opened by an external tool, so it'd get silently
+redirected into an existing fireplace and closed, taking your plugin's own
+setup for that tab down with it:
+
+```lua
+vim.api.nvim_tabpage_set_var(vim.api.nvim_get_current_tabpage(), "floo_ignore_external_tab", true)
+```
+
+No dependency on floo-network needed — this is just a generic Neovim API
+call, inert if floo-network isn't installed.
+
 ## Quit protection
 
 `:q`/`:quit` and `:qa`/`:qall`/`:quitall` (including their `!` forms —
