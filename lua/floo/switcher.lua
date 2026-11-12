@@ -40,8 +40,23 @@ function M.get_name(tabid)
   return vim.fn.fnamemodify(cwd, ":t")
 end
 
+-- Fireplace names end up as single lines in the dropdown buffer
+-- (nvim_buf_set_lines) and in :mksession-adjacent metadata -- a name
+-- containing a literal newline (e.g. a stray <CR> landing inside the
+-- rename prompt instead of submitting it) crashes nvim_buf_set_lines with
+-- "'replacement string' item contains newlines" every time the dropdown
+-- renders, which doesn't just affect that one fireplace: the dropdown
+-- lists every fireplace in one buffer, so one bad name takes the whole
+-- switcher down. Collapsing newlines (and other control characters) to a
+-- space, plus trimming, keeps whatever's stored always safe to render.
+local function sanitize_name(name)
+  name = name:gsub("[%c]", " ")
+  name = name:gsub("^%s+", ""):gsub("%s+$", "")
+  return name
+end
+
 function M.set_name(tabid, name)
-  vim.api.nvim_tabpage_set_var(tabid, "floo_workspace_name", name)
+  vim.api.nvim_tabpage_set_var(tabid, "floo_workspace_name", sanitize_name(name))
 end
 
 -- Whether a tab was explicitly registered as a fireplace (via new_workspace()
@@ -398,7 +413,11 @@ function M.refresh_open()
   for i, id in ipairs(tabs) do
     local icon = M.is_pinned(id) and PIN_ICON or "  "
     local number = i <= 9 and (tostring(i) .. " ") or "  "
-    local text = " " .. number .. icon .. M.get_name(id) .. " "
+    -- sanitize_name() here too, not just in set_name(): a name could in
+    -- principle still reach this unsanitized via get_name()'s cwd-fallback
+    -- path (a directory name can legally contain control characters on
+    -- POSIX) or a hand-edited session metadata file.
+    local text = " " .. number .. icon .. sanitize_name(M.get_name(id)) .. " "
     lines[i] = text
     width = math.max(width, vim.fn.strdisplaywidth(text) + 2)
     current.line_to_tab[i] = id
